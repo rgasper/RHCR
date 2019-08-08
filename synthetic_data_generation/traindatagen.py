@@ -150,7 +150,7 @@ def txt_to_cursive_img(doc, out_path, logger):
         logger.critical(trace)
         raise
     
-def main():
+if __name__ == '__main__':
     doc = []
     
     # Get command line args
@@ -207,6 +207,3 @@ def main():
             out.write("\t".join([resp[0], str(resp[1]), str(resp[2]),
                         str(resp[3]), str(resp[4]), resp[5]]))
             out.write("\n")
-    
-if __name__ == '__main__':
-    main()

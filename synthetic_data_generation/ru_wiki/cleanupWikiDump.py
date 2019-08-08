@@ -9,6 +9,7 @@ global log
 valid_letters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ "
 
 def random_punctuator(word):
+    ''' cus we don't allow punctuation, just add some in randomly '''
     if random() < .08:
         return "".join([word, ","])
     if random() < .066:
@@ -69,6 +70,8 @@ def getArgs():
     parser = argparse.ArgumentParser(description='Does some sanitization of target russian-language wikipedia archive file for ML training purposes')
     parser.add_argument('-i', '--inputFiles', nargs='+', type=str,
                         help='file(s) to process. standard bash syntax')
+    parser.add_argument('-o', '--outputFile', nargs=1, type=str, default='parsed.txt',
+                        help='file to output text to')
     return parser.parse_args()
 
 def getLog():
@@ -79,7 +82,7 @@ def getLog():
             level=logging.INFO,
             datefmt='%Y-%m-%d %H:%M:%S')
     log = logging.getLogger(logfile)
-    log.addHandler(RotatingFileHandler(logfile, mode='a', backupCount=14)) # will keep 14 backup logs: log.1, log.2 ... log.
+    log.addHandler(RotatingFileHandler(logfile, mode='a', backupCount=3))
     log.handlers[0].doRollover() # make a new log each time
     return log
 
