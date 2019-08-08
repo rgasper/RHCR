@@ -1,5 +1,5 @@
-traindatagen/ru_wiki/ruwiki
-traindatagen/ru_wiki/generated_text
+synthetic_data_generation/ru_wiki/ru_wiki_sample*
+synthetic_data_generation/ru_wiki/generated_text/*
 *.test
 *.log
 */*.test

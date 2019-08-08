@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from random import random, randint
 import logging
 from logging.handlers import RotatingFileHandler
 import argparse
-
+global log
 
 valid_letters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ "
-
-identifier = 0
-out = ""
 
 def random_punctuator(word):
     if random() < .08:
@@ -28,22 +26,27 @@ def random_punctuator(word):
     return word
 
 def format_line(line, max_width=50):
-    line = line.split()
-    while len(line) > 0:
-        out = random_punctuator(line[0])
-        line = line[1:]
-        while len(line) > 0 and len(out) + len(line[0]) + 1 < max_width:
-            out = " ".join([out, random_punctuator(line[0])])
+    try:
+        line = line.split()
+        while len(line) > 0:
+            out = random_punctuator(line[0])
             line = line[1:]
-        yield out
+            while len(line) > 0 and len(out) + len(line[0]) + 1 < max_width:
+                out = " ".join([out, random_punctuator(line[0])])
+                line = line[1:]
+            yield out
+    except:
+        log.exception(f'format_line failed on line: {line}')
 
-def write_to_text(inputFile, log):
-    log.info('starting write_to_text')
+def write_to_text(inputFile):
+    identifier, out = 0, ""
+    page_len = randint(0,1000)
     with open(inputFile, "r") as fp:
         for line in fp:
-            if len(out) > 990:
-                outFile = f"./generated_text/{str(identifier).zfill(7)}.txt"
-                log.info(f"writing to output file: {outFile}")
+            if len(out) > page_len:
+                page_len = randint(0,1000)
+                outFile = f"generated_text/ruwiki_clean_{str(identifier).zfill(7)}.txt"
+                log.debug(f"writing to output file: {outFile}")
                 with open(outFile, "w") as fp:
                     for out_line in format_line(out): # NOTE(rgasper) this could be turned into a oneliner with less punctuation
                         fp.write("".join([out_line, "\n"]))
@@ -59,6 +62,7 @@ def write_to_text(inputFile, log):
             line_out = " ".join(line_out)
             if line_out:        
                 out = " ".join([out, line_out])
+    log.info(f'generated text for {identifier} files')
 
 def getArgs():
     ''' used to get command-line arguments when run standalone '''
@@ -72,7 +76,7 @@ def getLog():
     logfile = 'log_parse_ru_wiki'
     logging.basicConfig(
             format='[%(levelname)s] - [%(module)s:%(lineno)d] %(asctime)s - %(message)s',
-            level=logging.DEBUG,
+            level=logging.INFO,
             datefmt='%Y-%m-%d %H:%M:%S')
     log = logging.getLogger(logfile)
     log.addHandler(RotatingFileHandler(logfile, mode='a', backupCount=14)) # will keep 14 backup logs: log.1, log.2 ... log.
@@ -80,7 +84,9 @@ def getLog():
     return log
 
 if __name__ == '__main__':
-    args = getArgs()
+    global log
     log = getLog()
+    args = getArgs()
     for inputFile in args.inputFiles:
-        log.info(f'running {__name__} as main file on input {inputFile}')
+        log.info(f'running on input {inputFile}')
+        write_to_text(inputFile)
