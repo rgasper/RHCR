@@ -8,6 +8,7 @@ import traceback
 from random import randint
 import threading
 from PIL import Image, ImageDraw, ImageFont
+import csv
 
 def format_line(line, max_width=90):
     ''' Ensures that lines of text terminate reasonably even if document has no newlines '''
@@ -150,60 +151,65 @@ def txt_to_cursive_img(doc, out_path, logger):
         logger.critical(trace)
         raise
     
-if __name__ == '__main__':
+# NOTE(rgasper) the targetFile API is kinda dumb I'm sure there's a better way to do this 
+def generate_file(inputFile, outputFile, targetFile=None):
+    if targetFile is None:
+        targetFile = outputFile.split('.')[0] + '_targets.csv'
+    # Output formats supported by matplotlib NOTE(rgasper) I bet we can import this somehow instead of having it manually here
+    supported_formats = ["eps", "jpeg", "jpg", "pdf", "pgf", "png", "ps", 
+                            "raw", "rgba", "svg", "svgz", "tif", "tiff"]
+    if args.outputFile.split(".")[1] not in supported_formats:
+        args.outputFile = "".join([args.outputFile, ".png"])
+        logger.warn(f'invalid outputFile format, please use one of the following formats: {supported_formats}')
     doc = []
-    
+    # Read in document to transform to cursive
+    with open(inputFile, "r") as handle:
+        for line in handle:
+            for frmtd_line in format_line(line):
+                doc.append(frmtd_line)
+    # Change each letter to a cursive image
+    logger.debug('converting string doc to cursive images')
+    out, responses, font = txt_to_cursive_img(doc, outputFile, logger)
+    out.save(outputFile)
+    logger.debug(f"Translated {inputFile} to {outputFile} using {font}")
+    # resp format: [doc, x0, y0, x1, y1, letter]
+    with open(targetFile, "w") as out:
+        writer = csv.writer(out)
+        writer.writerows(responses)
+
+if __name__ == '__main__':
     # Get command line args
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="input file path", type=str, nargs=1)
-    parser.add_argument("-o", "--output", help="output file path", type=str, nargs=1)
+    parser.add_argument("-f", "--inputFile", help="input file path for single file", type=str)
+    parser.add_argument("-o", "--outputFile", default="test.png", help="output file path", type=str)
+    parser.add_argument("-d", "--dir", help="directory of source text files, will run on all .txt files inside the directory")
     args = parser.parse_args()
     
     # Set up logger
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler("traindatagen.log")
+    handler = logging.FileHandler("log_traindatagen")
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    # Output formats supported by matplotlib
-    supported_formats = ["eps", "jpeg", "jpg", "pdf", "pgf", "png", "ps", 
-                            "raw", "rgba", "svg", "svgz", "tif", "tiff"]
-        
-    if args.input:
-        in_path = args.input[0]
-        # Read in document to transform to cursive
-        with open(in_path, "r") as handle:
-            for line in handle:
-                for frmtd_line in format_line(line):
-                    doc.append(frmtd_line)
-    else:
-        in_path = "sys.stdin"
-        # haven't tested sys.sdtin usage
-        for line in sys.stdin.read():
-            for frmtd_line in format_line(line):
-                doc.append(frmtd_line)
+    # do stuff
+    if args.inputFile:
+        logger.info(f'processing {args.inputFile}')
+        generate_file(args.inputFile, args.outputFile)
     
-    if args.output:
-        out_path = args.output[0]
-        if out_path.split(".")[-1] not in supported_formats:
-            out_path = "".join([out_path, ".png"])
-    else:
-        out_path = in_path.split("/")[-1]
-        out_path = "".join(out_path.split(".")[:-1])
-        out_path = f"{out_path}.png"
-    
-    # Change each letter to a cursive image
-    logger.info('converting string doc to cursive images')
-    out, responses, font = txt_to_cursive_img(doc, out_path, logger)
-    
-    out.save(f"{out_path}")
-    logger.info(f"Translated {in_path} to {out_path} using {font}")
-
-    # resp format: [doc, x0, y0, x1, y1, letter]
-    with open("responses.tab", "w") as out:
-        for resp in responses:
-            out.write("\t".join([resp[0], str(resp[1]), str(resp[2]),
-                        str(resp[3]), str(resp[4]), resp[5]]))
-            out.write("\n")
+    if args.dir:
+        outDir = "traindatagen_output"
+        logger.info(f'processing all .txt files in {args.dir}')
+        try:
+            os.mkdir(outDir)
+        except FileExistsError:
+            response = input(f'Delete all files in directory {outDir} [y/n]?       ')
+            if response.lower().strip()[0] == 'y':
+                logger.info(f'cleared all files in {outDir}')
+                for f in os.listdir(outDir):
+                    os.remove(f)
+        for f in os.listdir(args.dir):
+            if '.txt' in f:
+                outputFile = f.split('.')[0] + '.png'
+                generate_file(f"{args.dir}/{f}", f"{outDir}/{outputFile}")

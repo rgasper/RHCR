@@ -1,10 +1,9 @@
 synthetic_data_generation/ru_wiki/ru_wiki_sample*
 synthetic_data_generation/ru_wiki/generated_text/*
+synthetic_data_generation/ru_wiki/generated_text_small_sample/*
 *.test
-*.log
+**/log_*
 */*.test
-responses.tab
-traindatagen/responses.tab
 
 # Created by https://www.gitignore.io/api/git,linux,macos,python,images,windows,sublimetext,visualstudiocode
 # Edit at https://www.gitignore.io/?templates=git,linux,macos,python,images,windows,sublimetext,visualstudiocode
@@ -328,3 +327,74 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.gitignore.io/api/git,linux,macos,python,images,windows,sublimetext,visualstudiocode
+
+# Created by https://www.gitignore.io/api/images
+# Edit at https://www.gitignore.io/?templates=images
+
+### Images ###
+# JPEG
+*.jpg
+*.jpeg
+*.jpe
+*.jif
+*.jfif
+*.jfi
+
+# JPEG 2000
+*.jp2
+*.j2k
+*.jpf
+*.jpx
+*.jpm
+*.mj2
+
+# JPEG XR
+*.jxr
+*.hdp
+*.wdp
+
+# Graphics Interchange Format
+*.gif
+
+# RAW
+*.raw
+
+# Web P
+*.webp
+
+# Portable Network Graphics
+*.png
+
+# Animated Portable Network Graphics
+*.apng
+
+# Multiple-image Network Graphics
+*.mng
+
+# Tagged Image File Format
+*.tiff
+*.tif
+
+# Scalable Vector Graphics
+*.svg
+*.svgz
+
+# Portable Document Format
+*.pdf
+
+# X BitMap
+*.xbm
+
+# BMP
+*.bmp
+*.dib
+
+# ICO
+*.ico
+
+# 3D Images
+*.3dm
+*.max
+
+# End of https://www.gitignore.io/api/images
+
