@@ -6,9 +6,17 @@ import logging
 import argparse
 import traceback
 from random import randint
-import threading
+from multiprocessing import Pool
 from PIL import Image, ImageDraw, ImageFont
 import csv
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler("log_traindatagen")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def format_line(line, max_width=90):
     ''' Ensures that lines of text terminate reasonably even if document has no newlines '''
@@ -90,11 +98,10 @@ def generate_responses(word, current_x, current_y, font,
 
     return responses
     
-def txt_to_cursive_img(doc, out_path, logger):
+def txt_to_cursive_img(doc, out_path):
     ''' turns a document text into cursive images using the dictionary
         :params:
             doc- list of lines of text
-            logger- log object
         :return:
             a PIL Image object, response data, and the font (for debugging, some fonts have issues right now)
     '''
@@ -107,9 +114,6 @@ def txt_to_cursive_img(doc, out_path, logger):
 
         # pixel value of header and foot margins
         header_margin = 40
-
-        # number of threads
-        thread_count = 5
 
         # Get a random font
         fonts = os.listdir("./fonts")
@@ -128,6 +132,7 @@ def txt_to_cursive_img(doc, out_path, logger):
         responses = []
 
         for line in doc:
+            logger.debug('converting line')
             max_height = 0
             for word in line.split():
                 text_w, text_h = draw.textsize(word, font=font)
@@ -144,11 +149,8 @@ def txt_to_cursive_img(doc, out_path, logger):
 
         return img, responses, font_out
 
-    except Exception as e:
-        traceback.print_exc()
-        trace = traceback.format_exc()
-        logger.error(repr(e))
-        logger.critical(trace)
+    except:
+        logger.exception()
         raise
     
 # NOTE(rgasper) the targetFile API is kinda dumb I'm sure there's a better way to do this 
@@ -160,7 +162,7 @@ def generate_file(inputFile, outputFile, targetFile=None):
                             "raw", "rgba", "svg", "svgz", "tif", "tiff"]
     if args.outputFile.split(".")[1] not in supported_formats:
         args.outputFile = "".join([args.outputFile, ".png"])
-        logger.warn(f'invalid outputFile format, please use one of the following formats: {supported_formats}')
+        logger.warn(f'invalid outputFile format, using png instead. please use one of the following formats: {supported_formats}')
     doc = []
     # Read in document to transform to cursive
     with open(inputFile, "r") as handle:
@@ -168,30 +170,22 @@ def generate_file(inputFile, outputFile, targetFile=None):
             for frmtd_line in format_line(line):
                 doc.append(frmtd_line)
     # Change each letter to a cursive image
-    logger.debug('converting string doc to cursive images')
-    out, responses, font = txt_to_cursive_img(doc, outputFile, logger)
+    logger.debug(f'converting string doc to cursive images for {inputFile}')
+    out, responses, font = txt_to_cursive_img(doc, outputFile)
     out.save(outputFile)
-    logger.debug(f"Translated {inputFile} to {outputFile} using {font}")
     # resp format: [doc, x0, y0, x1, y1, letter]
     with open(targetFile, "w") as out:
         writer = csv.writer(out)
         writer.writerows(responses)
+    return True
 
 if __name__ == '__main__':
     # Get command line args
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--inputFile", help="input file path for single file", type=str)
+    parser.add_argument("-i", "--inputFile", help="input file path for single file", type=str)
     parser.add_argument("-o", "--outputFile", default="test.png", help="output file path", type=str)
     parser.add_argument("-d", "--dir", help="directory of source text files, will run on all .txt files inside the directory")
     args = parser.parse_args()
-    
-    # Set up logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    handler = logging.FileHandler("log_traindatagen")
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
     # do stuff
     if args.inputFile:
@@ -199,7 +193,7 @@ if __name__ == '__main__':
         generate_file(args.inputFile, args.outputFile)
     
     if args.dir:
-        outDir = "traindatagen_output"
+        outDir = "images_output"
         logger.info(f'processing all .txt files in {args.dir}')
         try:
             os.mkdir(outDir)
@@ -209,7 +203,12 @@ if __name__ == '__main__':
                 logger.info(f'cleared all files in {outDir}')
                 for f in os.listdir(outDir):
                     os.remove(f)
-        for f in os.listdir(args.dir):
-            if '.txt' in f:
-                outputFile = f.split('.')[0] + '.png'
-                generate_file(f"{args.dir}/{f}", f"{outDir}/{outputFile}")
+        infiles =  (f"{args.dir}/{f}" for f in os.listdir(args.dir))
+        def to_png(filename):
+            splits = filename.split('.')
+            return f"{splits[0]}.png"
+        outfiles =  (f"{outDir}/{to_png(f)}" for f in os.listdir(args.dir))
+
+        logger.info=(f'starting multiprocess pool iterating over files in {args.dir}')
+        pool = Pool(4)
+        results = pool.starmap(generate_file, zip(infiles, outfiles))

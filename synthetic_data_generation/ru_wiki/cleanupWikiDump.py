@@ -79,7 +79,7 @@ def getLog():
     logfile = 'log_parse_ru_wiki'
     logging.basicConfig(
             format='[%(levelname)s] - [%(module)s:%(lineno)d] %(asctime)s - %(message)s',
-            level=logging.INFO,
+            level=logging.DEBUG,
             datefmt='%Y-%m-%d %H:%M:%S')
     log = logging.getLogger(logfile)
     log.addHandler(RotatingFileHandler(logfile, mode='a', backupCount=3))

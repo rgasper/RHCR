@@ -1,3 +1,4 @@
+images_output/
 synthetic_data_generation/ru_wiki/ru_wiki_sample*
 synthetic_data_generation/ru_wiki/generated_text/*
 synthetic_data_generation/ru_wiki/generated_text_small_sample/*
