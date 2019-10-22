@@ -100,8 +100,7 @@ def generate_responses(word, current_x, current_y, font,
     return responses
     
 def draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h):
-    ''' draws bounding boxes for letters in word using artist
-    '''
+    ''' draws bounding boxes for letters in word using artist '''
     num_letters = len(word)
     letter_w_naieve = text_w/num_letters
     letter_h_naieve = text_h
