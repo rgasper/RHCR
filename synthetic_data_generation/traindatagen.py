@@ -75,7 +75,7 @@ def generate_responses(word, current_x, current_y, font,
     '''
     # tuning value adds pixels to every side of the box to improve
     # letter containment
-    box_tuner = 6
+    box_tuner = 8
 
     responses = []
 
