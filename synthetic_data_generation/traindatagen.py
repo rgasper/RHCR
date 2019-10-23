@@ -79,6 +79,7 @@ def generate_responses(word, current_x, current_y, font,
 
     responses = []
 
+    # not actually drawing anything, just using this to get texsize
     img = Image.new('L', (1, 1), 255)
     draw = ImageDraw.Draw(img)
 
@@ -94,9 +95,12 @@ def generate_responses(word, current_x, current_y, font,
     for letter in word:
         text_w, text_h = draw.textsize(letter, font=font)
         # resp format: [doc, x0, y0, x1, y1, letter]
-        responses.append([doc_id, current_x - box_tuner, current_y - box_tuner, 
-                        current_x + int(text_w * prop) + box_tuner, 
-                        current_y + text_h + box_tuner, letter])
+        responses.append([doc_id, 
+                          current_x - box_tuner, 
+                          current_y - box_tuner, 
+                          current_x + int(text_w * prop) + box_tuner, 
+                          current_y + text_h + box_tuner, 
+                          letter])
         current_x = current_x + int(text_w * prop)
 
     return responses
@@ -140,12 +144,6 @@ def get_nice_boxes(letters, origin_x, origin_y, word_w, word_h):
 
     return boxes
 
-def draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h):
-    ''' draws bounding boxes for letters in word using artist '''
-    boxes = get_nice_boxes(word, current_x, current_y, text_w, text_h)
-    for box in boxes:
-        artist.rectangle(box, outline=0, width=0)
-
 def txt_to_cursive_img(doc, out_path):
     ''' turns a document text into cursive images
         :params:
@@ -188,10 +186,12 @@ def txt_to_cursive_img(doc, out_path):
             if text_h > max_height:
                 max_height = text_h
             artist.text((current_x, current_y), word, font=font, fill=0)
+            # box format: [doc, x0, y0, x1, y1, letter]
+            boxes = generate_responses(word, current_x, current_y, font, 
+                        text_w, out_path)
             if args.viz:
-                draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h)
-            responses.extend(generate_responses(word, current_x, current_y, font, 
-                        text_w, out_path))
+                for box in boxes:
+                    artist.rectangle(((box[1], box[2]),(box[3],box[4])), width=0, outline=0)
             current_x = current_x + text_w + space
         current_x = side_margin
         current_y = current_y + max_height + line_buffer
