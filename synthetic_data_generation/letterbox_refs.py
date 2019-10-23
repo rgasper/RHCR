@@ -1,8 +1,22 @@
+'''
+Data related to how to draw the bounding boxes for the letters so that they do a decent job of fitting reality
+'''
 from collections import namedtuple
+# not enough data in here for it to really matter, just using namedtuple for fun
+
+# when we draw a box for a letter, we want to move inflate the box slightly
+# this will cause boxes to overlap, but that's _okay_
+inflation_factor = 1.1
+
+# TODO jiggle is unused but I would really like to add it
+# how much random noise to add to the weights when drawing box
+jiggle_factor = 0.05
+
 weights = namedtuple('Weights', ['x','y','y_off'])
 # x weight is true weight for weighted average of word width
 # y weight is % of word height
 # y_off is an offset from the _bottom_line_??? (top line???) of the word where this letter gets drawn
+default_char_weight = weights(1.,1.,0.)
 valid_chars =  ",-.0123456789?ЁАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё"
 char_weight_dict = {
     "," : weights(0.25, 0.25, -0.1),

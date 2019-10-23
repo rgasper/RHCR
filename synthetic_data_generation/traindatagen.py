@@ -11,13 +11,15 @@ from multiprocessing import Pool
 from PIL import Image, ImageDraw, ImageFont
 import csv
 
+import letterbox_refs
+
 # Set up logger
+logging.basicConfig(#filename='log_traindatagen',
+                    filemode='w',
+                    format='[%(module)s:%(lineno)d] %(asctime)s - [%(levelname)s] - %(message)s',
+                    datefmt='%d-%b-%Y %H:%M:%S',
+                    level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler("log_traindatagen")
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 def format_line(line, max_width=90):
     ''' Ensures that lines of text terminate reasonably even if document has no newlines '''
@@ -99,75 +101,104 @@ def generate_responses(word, current_x, current_y, font,
 
     return responses
     
+def get_nice_boxes(letters, origin_x, origin_y, word_w, word_h):
+    ''' uses reference data to find slightly clever bounding boxes for the cursive letters 
+    :params:
+        letters: str - an iterable of unicode characters
+        origin_x: int - the x coordinate of the origin (topleft)
+        origin_y: int - the y coordinate of the origin (topleft)
+        word_w: int - how wide is the word overall
+        word_h: int - how tall is the word overall
+    :return:
+        boxes: list - an iterable containing many lists representing:
+            box- (topleft[0,1], botright[0,1])
+        '''
+    boxes, _refs = [], []
+
+    # change from iterable of letters to iterable of reference namedtuples
+    for letter in letters:
+        try:
+            _refs.append(letterbox_refs.char_weight_dict[letter])
+        except KeyError:
+            _refs.append(letterbox_refs.default_char_weight)
+    
+    x_dist_unit = word_w / sum(ref.x for ref in _refs)
+    y_dist_unit = word_h
+    
+    # use floats while in progress then convert back to ints when we're done
+    topleft = [float(origin_x), float(origin_y)]
+    for ref in _refs:
+        box = ( 
+                ( int(topleft[0]),
+                  int(topleft[1] + y_dist_unit*(-1*ref.y_off)) )
+            ,
+                ( int(topleft[0] + x_dist_unit*ref.x), 
+                  int(topleft[1] + y_dist_unit*(-1*ref.y_off+ref.y)) )
+            )
+        boxes.append(box)
+        topleft[0] += x_dist_unit*ref.x
+
+    return boxes
+
 def draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h):
     ''' draws bounding boxes for letters in word using artist '''
-    num_letters = len(word)
-    letter_w_naieve = text_w/num_letters
-    letter_h_naieve = text_h
-    letter_x, letter_y = current_x, current_y
-    for letter in word:
-        artist.rectangle( [ (letter_x, letter_y) , (letter_x+letter_w_naieve, letter_y+letter_h_naieve) ]
-                    , outline=0, width=0)
-        letter_x += letter_w_naieve
+    boxes = get_nice_boxes(word, current_x, current_y, text_w, text_h)
+    for box in boxes:
+        artist.rectangle(box, outline=0, width=0)
 
 def txt_to_cursive_img(doc, out_path):
-    ''' turns a document text into cursive images using the dictionary
+    ''' turns a document text into cursive images
         :params:
             doc- list of lines of text
             out- path to a file to put the image
         :return:
             a PIL Image object, response data, and the font (for debugging, some fonts have issues right now)
     '''
-    try:
-        logger.debug(f'generating cursive text image to {out_path}')
-        # line_buffer is the pixel spacing between lines
-        line_buffer = 15
+    logger.debug(f'generating cursive text image to {out_path}')
+    # line_buffer is the pixel spacing between lines
+    line_buffer = 15
 
-        # pixel value of the side margins
-        side_margin = 40
+    # pixel value of the side margins
+    side_margin = 40
 
-        # pixel value of header and foot margins
-        header_margin = 40
+    # pixel value of header and foot margins
+    header_margin = 40
 
-        # Get a random font
-        fonts = os.listdir("./fonts")
-        font = ImageFont.truetype(f"./fonts/{choice(fonts)}", 120)
+    # Get a random font
+    fonts = os.listdir("./fonts")
+    font = ImageFont.truetype(f"./fonts/{choice(fonts)}", 120)
 
-        # Get max line width and document height
-        width, height = get_doc_dimensions(doc, font, side_margin, header_margin, line_buffer)
+    # Get max line width and document height
+    width, height = get_doc_dimensions(doc, font, side_margin, header_margin, line_buffer)
 
-        img = Image.new('L', (width, height), 255)
-        draw = ImageDraw.Draw(img)
+    img = Image.new('L', (width, height), 255)
+    artist = ImageDraw.Draw(img)
 
-        current_y = 0 + header_margin
-        current_x = 0 + side_margin
-        space = 25
+    current_y = 0 + header_margin
+    current_x = 0 + side_margin
+    space = 25
 
-        responses = []
+    responses = []
 
-        for line in doc:
-            # logger.debug('converting line')
-            max_height = 0
-            for word in line.split():
-                text_w, text_h = draw.textsize(word, font=font)
-                if text_h > max_height:
-                    max_height = text_h
-                draw.text((current_x, current_y), word, font=font, fill=0)
-                if args.viz:
-                    draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h)
-                responses.extend(generate_responses(word, current_x, current_y, font, 
-                            text_w, out_path))
-                current_x = current_x + text_w + space
-            current_x = side_margin
-            current_y = current_y + max_height + line_buffer
+    for line in doc:
+        # logger.debug('converting line')
+        max_height = 0
+        for word in line.split():
+            text_w, text_h = artist.textsize(word, font=font)
+            if text_h > max_height:
+                max_height = text_h
+            artist.text((current_x, current_y), word, font=font, fill=0)
+            if args.viz:
+                draw_letter_boxes(word, artist, current_x, current_y, text_w, text_h)
+            responses.extend(generate_responses(word, current_x, current_y, font, 
+                        text_w, out_path))
+            current_x = current_x + text_w + space
+        current_x = side_margin
+        current_y = current_y + max_height + line_buffer
 
-        font_out = font.path.split('/')[-1]
+    font_out = font.path.split('/')[-1]
 
-        return img, responses, font_out
-
-    except:
-        logger.exception(f'failed to generate a cursive image for file {out_path}')
-        raise
+    return img, responses, font_out
     
 # NOTE(rgasper) the targetFile API is kinda dumb I'm sure there's a better way to do this 
 def generate_file(inputFile, outputFile, targetFile=None):
@@ -187,12 +218,17 @@ def generate_file(inputFile, outputFile, targetFile=None):
                 doc.append(frmtd_line)
     # Change each letter to a cursive image
     logger.debug(f'converting string doc to cursive images for {inputFile}')
-    out, responses, font = txt_to_cursive_img(doc, outputFile)
-    out.save(outputFile)
-    # resp format: [doc, x0, y0, x1, y1, letter]
-    with open(targetFile, "w") as out:
-        writer = csv.writer(out)
-        writer.writerows(responses)
+    try:
+        out, responses, font = txt_to_cursive_img(doc, outputFile)
+        out.save(outputFile)
+        # resp format: [doc, x0, y0, x1, y1, letter]
+        with open(targetFile, "w") as tf:
+            writer = csv.writer(tf)
+            writer.writerows(responses)
+    except:
+        logger.exception(f'failed to generate a cursive image into file {outputFile}')
+        raise
+
     return True
 
 if __name__ == '__main__':
