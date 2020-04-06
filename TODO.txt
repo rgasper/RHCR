@@ -1,0 +1,4 @@
+Better Bounding Box Drawing in Traindatagen.py
+A real CNN and spellchecker/RNN to get to text
+Accuracy Assessment
+Image Warping/Colors/Damage (more realistic images)
